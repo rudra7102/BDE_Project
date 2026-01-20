@@ -5,8 +5,9 @@ class FacultySpider(scrapy.Spider):
     name = "faculty"
     allowed_domains = ["daiict.ac.in"]
     start_urls = [
-        "https://www.daiict.ac.in/faculty"
-    ]
+    "https://www.daiict.ac.in/faculty",
+]
+
 
     # ----------------------------------------
     # STAGE 1: FACULTY DIRECTORY PAGE
