@@ -78,8 +78,10 @@ Returns all faculty records as JSON.
 GET /faculty/{id}
 Returns details of a single faculty member.
 
-http://127.0.0.1:8000/all
+http://127.0.0.1:8000/docs
+http://127.0.0.1:8000/all  
 http://127.0.0.1:8000/faculty/1
+
 
 
 
