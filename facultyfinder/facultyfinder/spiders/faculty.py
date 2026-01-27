@@ -45,7 +45,7 @@ class FacultySpider(scrapy.Spider):
         ).getall()
         specialization = ", ".join(
             s.strip() for s in specialization_parts if s.strip()
-        )
+                   )
 
         teaching = response.xpath(
             "//h2[normalize-space()='Teaching']"

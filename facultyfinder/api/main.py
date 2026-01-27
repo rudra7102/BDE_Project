@@ -1,5 +1,7 @@
 from fastapi import FastAPI
 import sqlite3
+from pydantic import BaseModel 
+from typing import Optional 
 
 DB_PATH = "database/faculty.db"
 
@@ -7,6 +9,15 @@ app = FastAPI(title="FacultyFinder API")
 
 def get_connection():
     return sqlite3.connect(DB_PATH)
+
+class FacultyResponse(BaseModel):
+    faculty_id: str
+    name: str
+    profile_url: Optional[str]
+    education: Optional[str]
+    email: Optional[str]
+    contact_number: Optional[str]
+    research_area: Optional[str]
 
 @app.get("/all")
 def get_all_faculty():
@@ -45,6 +56,7 @@ def get_faculty_by_id(faculty_id: int):
         SELECT id, name, bio, specialization, teaching,
                phone, email, profile_url, bio_text
         FROM faculty
+        
         WHERE id = ?
     """, (faculty_id,))
 
