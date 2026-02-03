@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 import sqlite3
 from pydantic import BaseModel 
-from typing import Optional 
+from typing import Optional      
 
 DB_PATH = "database/faculty.db"
 
