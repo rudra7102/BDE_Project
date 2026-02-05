@@ -45,4 +45,4 @@ for _, row in df.iterrows():
 conn.commit()
 conn.close()
 
-print(" Storage complete: faculty.db created")
+print("  Storage complete: faculty.db created")

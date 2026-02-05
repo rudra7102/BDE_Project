@@ -1,24 +1,22 @@
 from fastapi import FastAPI
 import sqlite3
-from pydantic import BaseModel 
-from typing import Optional      
+from pydantic import BaseModel
+from typing import Optional
+
+# --------------------
+# App initialization
+# --------------------
+app = FastAPI(title="FacultyFinder API")
 
 DB_PATH = "database/faculty.db"
-
-app = FastAPI(title="FacultyFinder API")
 
 def get_connection():
     return sqlite3.connect(DB_PATH)
 
-class FacultyResponse(BaseModel):
-    faculty_id: str
-    name: str
-    profile_url: Optional[str]
-    education: Optional[str]
-    email: Optional[str]
-    contact_number: Optional[str]
-    research_area: Optional[str]
 
+# --------------------
+# Existing APIs
+# --------------------
 @app.get("/all")
 def get_all_faculty():
     conn = get_connection()
@@ -47,6 +45,7 @@ def get_all_faculty():
         for r in rows
     ]
 
+
 @app.get("/faculty/{faculty_id}")
 def get_faculty_by_id(faculty_id: int):
     conn = get_connection()
@@ -56,7 +55,6 @@ def get_faculty_by_id(faculty_id: int):
         SELECT id, name, bio, specialization, teaching,
                phone, email, profile_url, bio_text
         FROM faculty
-        
         WHERE id = ?
     """, (faculty_id,))
 
@@ -77,3 +75,39 @@ def get_faculty_by_id(faculty_id: int):
         "profile_url": row[7],
         "bio_text": row[8],
     }
+
+
+# --------------------
+# Recommender imports (AFTER app is created)
+# --------------------
+from recommender.semantic_search import (
+    load_faculty_data,
+    generate_embeddings,
+    recommend_faculty
+)
+
+
+# Load data once
+faculty_df = load_faculty_data()
+faculty_embeddings = generate_embeddings(
+    faculty_df["bio_text"].tolist()
+)
+
+
+# --------------------
+# Recommender API
+# --------------------
+class QueryRequest(BaseModel):
+    query: str
+    top_k: int = 5
+
+
+@app.post("/recommend")
+def recommend(request: QueryRequest):
+    results = recommend_faculty(
+        request.query,
+        faculty_df,
+        faculty_embeddings,
+        top_k=request.top_k
+    )
+    return results.to_dict(orient="records")
