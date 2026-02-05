@@ -6,41 +6,40 @@ import numpy as np
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 
-
 # =====================================================
-# Database configuration
+# Paths
 # =====================================================
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB_PATH = os.path.join(BASE_DIR, "database", "faculty.db")
 
-
 # =====================================================
-# Load faculty data from SQLite
+# Load faculty data
 # =====================================================
 def load_faculty_data():
     conn = sqlite3.connect(DB_PATH)
 
     df = pd.read_sql_query(
         """
-        SELECT id, name, bio_text, profile_url
+        SELECT
+         id,
+         name,
+        specialization,
+        profile_url,
+        name || ' ' || specialization AS semantic_text
         FROM faculty
+
         """,
         conn
     )
 
     conn.close()
-
-    # Ensure clean text for embeddings
-    df["bio_text"] = df["bio_text"].fillna("").astype(str)
-
+    df["semantic_text"] = df["semantic_text"].astype(str)
     return df
 
-
 # =====================================================
-# Load sentence embedding model
+# Load embedding model
 # =====================================================
 model = SentenceTransformer("all-MiniLM-L6-v2")
-
 
 # =====================================================
 # Generate embeddings
@@ -48,53 +47,59 @@ model = SentenceTransformer("all-MiniLM-L6-v2")
 def generate_embeddings(texts):
     return model.encode(
         texts,
-        show_progress_bar=True,
-        normalize_embeddings=True
+        normalize_embeddings=True,
+        show_progress_bar=True
     )
 
-
 # =====================================================
-# Semantic recommendation logic
+# Semantic recommendation
 # =====================================================
-def recommend_faculty(query, df, embeddings, top_k=5):
+def recommend_faculty(query, faculty_df, faculty_embeddings, top_k=5):
     query_embedding = model.encode(
         [query],
         normalize_embeddings=True
     )
 
-    similarities = cosine_similarity(query_embedding, embeddings)[0]
+    similarity_scores = cosine_similarity(
+        query_embedding,
+        faculty_embeddings
+    )[0]
 
-    df = df.copy()
-    df["similarity_score"] = similarities
+    faculty_df = faculty_df.copy()
+    faculty_df["score"] = similarity_scores
 
     results = (
-        df.sort_values("similarity_score", ascending=False)
+        faculty_df
+        .sort_values("score", ascending=False)
         .head(top_k)
         .reset_index(drop=True)
     )
 
-    return results[["id", "name", "profile_url", "similarity_score"]]
-
+    return results[
+        ["id", "name", "specialization", "profile_url", "score"]
+    ]
 
 # =====================================================
-# Local testing (Data Scientist verification)
+# Local testing
 # =====================================================
 if __name__ == "__main__":
-    print("Loading faculty data...")
+    print("🔹 Loading faculty data")
     faculty_df = load_faculty_data()
 
-    print("Generating embeddings...")
+    print("🔹 Generating embeddings")
     faculty_embeddings = generate_embeddings(
-        faculty_df["bio_text"].tolist()
+        faculty_df["semantic_text"].tolist()
     )
 
-    test_query = "sustainable energy and carbon capture"
+    test_query = "faculty working on machine learning in healthcare and data science"
 
-    print(f"\nQuery: {test_query}\n")
-    recommendations = recommend_faculty(
+    print(f"\n🔍 Query: {test_query}\n")
+
+    results = recommend_faculty(
         test_query,
         faculty_df,
-        faculty_embeddings
+        faculty_embeddings,
+        top_k=5
     )
 
-    print(recommendations)
+    print(results)
