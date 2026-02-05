@@ -1,28 +1,8 @@
-# Web scraping framework used to crawl faculty directory pages
-scrapy
-
-# Data manipulation and cleaning
+fastapi
+uvicorn
 pandas
 numpy
-
-# Regular expressions for text cleaning
-regex
-
-# Lightweight relational database (built into Python)
-# sqlite3 is part of Python standard library, no installation required
-
-# Web API framework for serving cleaned data
-fastapi
-
-# ASGI server to run FastAPI
-uvicorn
-
-
-# Sentence embeddings for semantic search
-sentence-transformers
-
-# Similarity computation
 scikit-learn
-
 sentence-transformers
-
+torch --index-url https://download.pytorch.org/whl/cpu
+sqlite-utils
