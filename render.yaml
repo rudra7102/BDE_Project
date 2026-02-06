@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: faculty-finder
+    runtime: docker
+    region: singapore
+    plan: free
+    branch: main
+    envVars:
+      - key: PORT
+        value: 10000

@@ -3,7 +3,8 @@
 ## ✅ Prerequisites Fixed
 The following issues have been resolved for successful deployment:
 - ❌ **FIXED**: Removed `sqlite3` from `requirements.txt` (it's a built-in Python module)
-- ❌ **FIXED**: Changed host binding from `127.0.0.1` to `0.0.0.0` in `run.py`
+- ❌ **FIXED**: Configured `Dockerfile` to run `uvicorn` directly (removed dependency on missing `run.py`)
+- ❌ **FIXED**: Added `render.yaml` for Blueprint deployment (optional but recommended)
 - ❌ **FIXED**: Added PORT environment variable support for Render
 - ❌ **FIXED**: Disabled reload mode for production deployment
 
@@ -18,9 +19,18 @@ git push origin main
 ```
 
 ### Step 2: Create Web Service on Render
-1. Go to [Render.com](https://render.com) and sign in
-2. Click **New** → **Web Service**
-3. Connect your GitHub repository
+
+**Option A: Zero Config (Recommended)**
+1. Go to [Render.com](https://render.com) and sign in.
+2. Click **New** → **Blueprint**.
+3. Connect your GitHub repository.
+4. It will automatically detect `render.yaml` and configure the service as `faculty-finder`.
+5. Click **Apply**.
+
+**Option B: Manual Setup**
+1. Go to [Render.com](https://render.com) and sign in.
+2. Click **New** → **Web Service**.
+3. Connect your GitHub repository.
 4. Configure the service:
    - **Name**: `faculty-finder` (or your preferred name)
    - **Runtime**: **Docker**

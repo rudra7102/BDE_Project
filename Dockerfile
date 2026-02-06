@@ -12,4 +12,5 @@ COPY . .
 # Render sets PORT env variable, expose it
 EXPOSE ${PORT:-8000}
 
-CMD ["python", "run.py"]
+# Start uvicorn directly, using the PORT environment variable
+CMD uvicorn api.main:app --host 0.0.0.0 --port $PORT
