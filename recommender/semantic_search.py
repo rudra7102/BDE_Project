@@ -3,7 +3,7 @@ import sqlite3
 import pandas as pd
 import numpy as np
 
-from sentence_transformers import SentenceTransformer
+from fastembed import TextEmbedding
 from sklearn.metrics.pairwise import cosine_similarity
 
 # =====================================================
@@ -39,26 +39,22 @@ def load_faculty_data():
 # =====================================================
 # Load embedding model
 # =====================================================
-model = SentenceTransformer("all-MiniLM-L6-v2")
+# This model is 70% smaller and runs on ONNX Runtime (CPU optimized)
+model = TextEmbedding(model_name="sentence-transformers/all-MiniLM-L6-v2")
 
 # =====================================================
 # Generate embeddings
 # =====================================================
 def generate_embeddings(texts):
-    return model.encode(
-        texts,
-        normalize_embeddings=True,
-        show_progress_bar=True
-    )
+    # fastembed returns a generator, convert to list
+    return list(model.embed(texts))
 
 # =====================================================
 # Semantic recommendation
 # =====================================================
 def recommend_faculty(query, faculty_df, faculty_embeddings, top_k=5):
-    query_embedding = model.encode(
-        [query],
-        normalize_embeddings=True
-    )
+    # Embed the query (returns generator of one item)
+    query_embedding = list(model.embed([query]))
 
     similarity_scores = cosine_similarity(
         query_embedding,
