@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import sqlite3
@@ -15,7 +15,7 @@ app = FastAPI(title="FacultyFinder API")
 # --------------------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Later restrict to frontend domain
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -31,19 +31,11 @@ def get_connection():
     return sqlite3.connect(DB_PATH)
 
 # --------------------
-# Root
+# Root (FIXED)
 # --------------------
-@app.get("/", response_class=HTMLResponse)
+@app.get("/")
 def root():
-    return """
-    <html>
-        <head><title>Faculty Finder</title></head>
-        <body style="font-family:Arial;text-align:center;padding-top:100px;">
-            <h1>Faculty Finder API Running</h1>
-            <a href="/docs">Go to Docs</a>
-        </body>
-    </html>
-    """
+    return RedirectResponse(url="/docs")
 
 # --------------------
 # Get All Faculty
