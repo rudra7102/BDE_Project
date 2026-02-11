@@ -1,7 +1,8 @@
-from fastapi import FastAPI
-import sqlite3
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import HTMLResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional
+import sqlite3
 import os
 
 # --------------------
@@ -10,7 +11,18 @@ import os
 app = FastAPI(title="FacultyFinder API")
 
 # --------------------
-# Robust DB path (IMPORTANT for hosting)
+# Enable CORS
+# --------------------
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Later restrict to frontend domain
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# --------------------
+# DB Path
 # --------------------
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB_PATH = os.path.join(BASE_DIR, "database", "faculty.db")
@@ -19,75 +31,93 @@ def get_connection():
     return sqlite3.connect(DB_PATH)
 
 # --------------------
-# Health check (VERY IMPORTANT)
+# Root
 # --------------------
-@app.get("/")
+@app.get("/", response_class=HTMLResponse)
 def root():
-    return {"status": "FacultyFinder API is running"}
+    return """
+    <html>
+        <head><title>Faculty Finder</title></head>
+        <body style="font-family:Arial;text-align:center;padding-top:100px;">
+            <h1>Faculty Finder API Running</h1>
+            <a href="/docs">Go to Docs</a>
+        </body>
+    </html>
+    """
 
 # --------------------
-# Existing APIs
+# Get All Faculty
 # --------------------
 @app.get("/all")
 def get_all_faculty():
-    conn = get_connection()
-    cursor = conn.cursor()
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
 
-    cursor.execute("""
-        SELECT id, name, bio, specialization, teaching,
-               phone, email, profile_url, semantic_text
-        FROM faculty
-    """)
-    rows = cursor.fetchall()
-    conn.close()
+        cursor.execute("""
+            SELECT id, name, bio, specialization, teaching,
+                   phone, email, profile_url, semantic_text
+            FROM faculty
+        """)
+        rows = cursor.fetchall()
+        conn.close()
 
-    return [
-        {
-            "id": r[0],
-            "name": r[1],
-            "bio": r[2],
-            "specialization": r[3],
-            "teaching": r[4],
-            "phone": r[5],
-            "email": r[6],
-            "profile_url": r[7],
-            "semantic_text": r[8],
-        }
-        for r in rows
-    ]
-
-@app.get("/faculty/{faculty_id}")
-def get_faculty_by_id(faculty_id: int):
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    cursor.execute("""
-        SELECT id, name, bio, specialization, teaching,
-               phone, email, profile_url, semantic_text
-        FROM faculty
-        WHERE id = ?
-    """, (faculty_id,))
-
-    row = cursor.fetchone()
-    conn.close()
-
-    if not row:
-        return {"error": "Faculty not found"}
-
-    return {
-        "id": row[0],
-        "name": row[1],
-        "bio": row[2],
-        "specialization": row[3],
-        "teaching": row[4],
-        "phone": row[5],
-        "email": row[6],
-        "profile_url": row[7],
-        "semantic_text": row[8],
-    }
+        return [
+            {
+                "id": r[0],
+                "name": r[1],
+                "bio": r[2],
+                "specialization": r[3],
+                "teaching": r[4],
+                "phone": r[5],
+                "email": r[6],
+                "profile_url": r[7],
+                "semantic_text": r[8],
+            }
+            for r in rows
+        ]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 # --------------------
-# Recommender imports
+# Get Faculty by ID
+# --------------------
+@app.get("/faculty/{faculty_id}")
+def get_faculty_by_id(faculty_id: int):
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT id, name, bio, specialization, teaching,
+                   phone, email, profile_url, semantic_text
+            FROM faculty
+            WHERE id = ?
+        """, (faculty_id,))
+
+        row = cursor.fetchone()
+        conn.close()
+
+        if not row:
+            raise HTTPException(status_code=404, detail="Faculty not found")
+
+        return {
+            "id": row[0],
+            "name": row[1],
+            "bio": row[2],
+            "specialization": row[3],
+            "teaching": row[4],
+            "phone": row[5],
+            "email": row[6],
+            "profile_url": row[7],
+            "semantic_text": row[8],
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# --------------------
+# Recommender Imports
 # --------------------
 from recommender.semantic_search import (
     load_faculty_data,
@@ -96,34 +126,43 @@ from recommender.semantic_search import (
 )
 
 # --------------------
-# Load data ONCE (critical)
+# Load embeddings once
 # --------------------
 faculty_df = load_faculty_data()
 faculty_embeddings = generate_embeddings(
     faculty_df["semantic_text"].tolist()
 )
 
-print("✅ Faculty data and embeddings loaded")
+print("✅ Faculty embeddings loaded")
 
 # --------------------
-# Recommender API
+# Request Model
 # --------------------
 class QueryRequest(BaseModel):
     query: str
     top_k: int = 5
 
+# --------------------
+# Recommend API
+# --------------------
 @app.post("/recommend")
 def recommend(request: QueryRequest):
-    results = recommend_faculty(
-        request.query,
-        faculty_df,
-        faculty_embeddings,
-        top_k=request.top_k
-    )
-    return results.to_dict(orient="records")
+    try:
+        results = recommend_faculty(
+            request.query,
+            faculty_df,
+            faculty_embeddings,
+            top_k=request.top_k
+        )
+
+        return results.to_dict(orient="records")
+
+    except Exception as e:
+        print("ERROR IN RECOMMEND:", e)
+        raise HTTPException(status_code=500, detail=str(e))
 
 # --------------------
-# Local run (Render will ignore this)
+# Local Run
 # --------------------
 if __name__ == "__main__":
     import uvicorn
