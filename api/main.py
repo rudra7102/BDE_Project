@@ -8,7 +8,11 @@ import os
 # --------------------
 # App initialization
 # --------------------
-app = FastAPI(title="FacultyFinder API")
+app = FastAPI(
+    title="FacultyFinder API",
+    docs_url="/docs",
+    redoc_url=None
+)
 
 # --------------------
 # Enable CORS
@@ -31,9 +35,9 @@ def get_connection():
     return sqlite3.connect(DB_PATH)
 
 # --------------------
-# Root (FIXED)
+# Root → Redirect to Docs (FIXED PROPERLY)
 # --------------------
-@app.get("/")
+@app.get("/", include_in_schema=False)
 def root():
     return RedirectResponse(url="/docs")
 
