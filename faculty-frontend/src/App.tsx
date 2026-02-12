@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import axios from "axios";
 
 interface Faculty {
@@ -14,42 +14,39 @@ const API_URL =
     ? "http://127.0.0.1:8000"
     : "https://bde-project-c4fi.onrender.com";
 
-
 function App() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Faculty[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const resultsRef = useRef<HTMLDivElement>(null);
 
-const searchFaculty = async () => {
-  if (!query.trim()) return;
+  const searchFaculty = async () => {
+    if (!query.trim()) return;
 
-  console.log("Sending request...");
+    setLoading(true);
+    setError("");
+    setResults([]);
 
-  setLoading(true);
-  setError("");
-  setResults([]);
+    try {
+      const response = await axios.post(
+        `${API_URL}/recommend`,
+        { query, top_k: 5 },
+        { timeout: 60000 }
+      );
 
-  try {
-    const response = await axios.post(
-      `${API_URL}/recommend`,
-      { query, top_k: 5 },
-      { timeout: 15000 }
-    );
+      setResults(response.data);
 
-    console.log("RESPONSE RECEIVED:", response.data);
+      setTimeout(() => {
+        resultsRef.current?.scrollIntoView({ behavior: "smooth" });
+      }, 100);
 
-    setResults(response.data);
-  } catch (err: any) {
-    console.error("AXIOS ERROR:", err);
-    setError("Backend temporarily unavailable.");
-  }
+    } catch (err) {
+      setError("Backend temporarily unavailable.");
+    }
 
-  console.log("Request finished");
-
-  setLoading(false);
-};
-
+    setLoading(false);
+  };
 
   return (
     <div className="min-h-screen w-screen bg-gray-50">
@@ -61,7 +58,7 @@ const searchFaculty = async () => {
         </h1>
       </nav>
 
-      {/* HERO */}
+      {/* HERO SECTION */}
       <section className="w-full bg-gradient-to-r from-emerald-700 to-teal-600 text-white py-32 text-center">
         <div className="max-w-5xl mx-auto px-4">
           <h2 className="text-5xl font-bold mb-6 leading-tight">
@@ -73,10 +70,10 @@ const searchFaculty = async () => {
           </p>
 
           <div className="flex justify-center">
-            <div className="bg-white flex rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden">
+            <div className="bg-white flex rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden">
               <input
                 type="text"
-                placeholder="e.g. Machine Learning"
+                placeholder="e.g. Cybersecurity, Machine Learning..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && searchFaculty()}
@@ -85,7 +82,7 @@ const searchFaculty = async () => {
 
               <button
                 onClick={searchFaculty}
-                className="bg-emerald-600 text-white px-10 text-lg font-semibold hover:bg-emerald-700 transition"
+                className="bg-emerald-600 text-white px-10 text-lg font-semibold hover:bg-emerald-700 transition duration-300"
               >
                 {loading ? "Searching..." : "Search"}
               </button>
@@ -100,39 +97,46 @@ const searchFaculty = async () => {
         </div>
       </section>
 
-      {/* RESULTS */}
-      <div className="max-w-6xl mx-auto mt-20 px-6 pb-20">
+      {/* RESULTS SECTION */}
+      <div ref={resultsRef} className="max-w-6xl mx-auto mt-20 px-6 pb-24">
+
         {results.length > 0 && (
-          <h3 className="text-3xl font-semibold mb-12 text-center text-gray-800">
+          <h3 className="text-4xl font-bold mb-14 text-center text-gray-800">
             Recommended Faculty
           </h3>
         )}
 
-        <div className="grid md:grid-cols-2 gap-10">
+        {loading && (
+          <div className="text-center text-gray-600 text-lg">
+            Finding best matches...
+          </div>
+        )}
+
+        <div className="grid md:grid-cols-2 gap-12">
           {results.map((faculty, index) => (
-            <a
+            <div
               key={index}
-              href={faculty.profile_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="bg-white p-8 rounded-2xl shadow-lg hover:shadow-2xl transition duration-300 block hover:-translate-y-1"
+              className="bg-white p-8 rounded-3xl shadow-xl hover:shadow-2xl transition duration-300 border border-gray-100 hover:-translate-y-2 transform"
             >
-              <h4 className="text-2xl font-bold text-emerald-700 mb-3">
+              <h4 className="text-2xl font-bold text-emerald-700 mb-2">
                 {faculty.name}
               </h4>
 
-              <p className="text-gray-600 font-medium">
+              <p className="text-sm uppercase tracking-wide text-emerald-500 font-semibold">
                 {faculty.specialization}
               </p>
 
-              <p className="text-gray-500 mt-4 text-sm leading-relaxed">
+              <p className="text-gray-600 mt-4 leading-relaxed">
                 {faculty.bio}
               </p>
 
-              <div className="mt-6 text-emerald-600 font-semibold">
-                View Profile →
-              </div>
-            </a>
+              <button
+                onClick={() => window.open(faculty.profile_url, "_blank")}
+                className="mt-6 px-6 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition duration-300"
+              >
+                View Profile
+              </button>
+            </div>
           ))}
         </div>
       </div>
