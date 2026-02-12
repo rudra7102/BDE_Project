@@ -15,11 +15,11 @@ app = FastAPI(
 )
 
 # --------------------
-# Enable CORS
+# Enable CORS (Production Safe)
 # --------------------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # keep * for now
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -35,7 +35,7 @@ def get_connection():
     return sqlite3.connect(DB_PATH)
 
 # --------------------
-# Root → Redirect to Docs (FIXED PROPERLY)
+# Root Redirect
 # --------------------
 @app.get("/", include_in_schema=False)
 def root():
@@ -49,12 +49,7 @@ def get_all_faculty():
     try:
         conn = get_connection()
         cursor = conn.cursor()
-
-        cursor.execute("""
-            SELECT id, name, bio, specialization, teaching,
-                   phone, email, profile_url, semantic_text
-            FROM faculty
-        """)
+        cursor.execute("SELECT id, name, bio, specialization, teaching, phone, email, profile_url, semantic_text FROM faculty")
         rows = cursor.fetchall()
         conn.close()
 
@@ -75,61 +70,28 @@ def get_all_faculty():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# --------------------
-# Get Faculty by ID
-# --------------------
-@app.get("/faculty/{faculty_id}")
-def get_faculty_by_id(faculty_id: int):
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
-
-        cursor.execute("""
-            SELECT id, name, bio, specialization, teaching,
-                   phone, email, profile_url, semantic_text
-            FROM faculty
-            WHERE id = ?
-        """, (faculty_id,))
-
-        row = cursor.fetchone()
-        conn.close()
-
-        if not row:
-            raise HTTPException(status_code=404, detail="Faculty not found")
-
-        return {
-            "id": row[0],
-            "name": row[1],
-            "bio": row[2],
-            "specialization": row[3],
-            "teaching": row[4],
-            "phone": row[5],
-            "email": row[6],
-            "profile_url": row[7],
-            "semantic_text": row[8],
-        }
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
 # --------------------
-# Recommender Imports
+# Lazy Load Recommender (IMPORTANT FIX)
 # --------------------
-from recommender.semantic_search import (
-    load_faculty_data,
-    generate_embeddings,
-    recommend_faculty
-)
+faculty_df = None
+faculty_embeddings = None
 
-# --------------------
-# Load embeddings once
-# --------------------
-faculty_df = load_faculty_data()
-faculty_embeddings = generate_embeddings(
-    faculty_df["semantic_text"].tolist()
-)
+@app.on_event("startup")
+def load_embeddings():
+    global faculty_df, faculty_embeddings
+    from recommender.semantic_search import (
+        load_faculty_data,
+        generate_embeddings
+    )
 
-print("✅ Faculty embeddings loaded")
+    faculty_df = load_faculty_data()
+    faculty_embeddings = generate_embeddings(
+        faculty_df["semantic_text"].tolist()
+    )
+
+    print("✅ Faculty embeddings loaded")
+
 
 # --------------------
 # Request Model
@@ -138,12 +100,15 @@ class QueryRequest(BaseModel):
     query: str
     top_k: int = 5
 
+
 # --------------------
 # Recommend API
 # --------------------
 @app.post("/recommend")
 def recommend(request: QueryRequest):
     try:
+        from recommender.semantic_search import recommend_faculty
+
         results = recommend_faculty(
             request.query,
             faculty_df,
@@ -157,14 +122,10 @@ def recommend(request: QueryRequest):
         print("ERROR IN RECOMMEND:", e)
         raise HTTPException(status_code=500, detail=str(e))
 
+
 # --------------------
 # Local Run
 # --------------------
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(
-        "api.main:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=True
-    )
+    uvicorn.run("api.main:app", host="0.0.0.0", port=8000)
